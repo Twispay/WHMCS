@@ -1,28 +1,10 @@
 <?php
 /**
- * WHMCS Sample Payment Gateway Module
- *
- * Payment Gateway modules allow you to integrate payment solutions with the
- * WHMCS platform.
- *
- * This sample file demonstrates how a payment gateway module for WHMCS should
- * be structured and all supported functionality it can contain.
- *
- * Within the module itself, all functions must be prefixed with the module
- * filename, followed by an underscore, and then the function name. For this
- * example file, the filename is "gatewaymodule" and therefore all functions
- * begin "twispay_".
- *
- * If your module or third party API does not support a given function, you
- * should not define that function within your module. Only the _config
- * function is required.
+ * Twispay Payment Gateway Module
  *
  * For more information, please refer to the online documentation.
  *
- * @see https://developers.whmcs.com/payment-gateways/
- *
- * @copyright Copyright (c) WHMCS Limited 2017
- * @license http://www.whmcs.com/license/ WHMCS Eula
+ * @see https://www.twispay.com
  */
 
 if (!defined("WHMCS")) {
@@ -35,13 +17,10 @@ if (!defined("WHMCS")) {
  * Values returned here are used to determine module related capabilities and
  * settings.
  *
- * @see https://developers.whmcs.com/payment-gateways/meta-data-params/
- *
  * @return array
  */
 function twispay_MetaData()
 {
-
     return array(
         'DisplayName' => 'Twispay',
         'APIVersion' => '1.1', // Use API Version 1.1
@@ -65,94 +44,128 @@ function twispay_MetaData()
  * * radio
  * * textarea
  *
- * Examples of each field type and their possible configuration parameters are
- * provided in the sample function below.
- *
  * @return array
  */
 function twispay_config()
 {
-    $baseurl = (!empty($_SERVER['HTTPS'])) ? 'https://' : 'http://';
-    $baseurl .= $_SERVER['HTTP_HOST'];
-    echo '<style>input[name="field[s_t_s_notification]"]{display:none !important;}</style>';
+    /** Calculate the base URL of the platform. */
+    $baseurl = ((!empty($_SERVER['HTTPS'])) ? ('https://') : ('http://')) . $_SERVER['HTTP_HOST'];
+
+    /** Hide the server to server default input */
+    echo '<style>input[name="field[s2s_notification]"]{display:none !important;}</style>';
+
+    /** Compose the return array. */
     return array(
         'FriendlyName' => array(
             'Type' => 'System',
             'Value' => 'Twispay',
-            'Description' => 'Pay by debit or credit card',
-        ),
-        "UsageNotes" => array( "Type" => "System",
-            "Value" => ""
+            'Description' => '<br/><small>Pay by debit or credit card.</small>',
         ),
 
-        'testMode' => array(
-            'FriendlyName' => 'Test Mode',
-            'Type' => 'yesno',
-            'Description' => 'Tick to enable test mode',
+        /** Details and logic for field that contolls at wchich environment (production or staging) the platform connects. */
+        'live_mode' => array(
+            'FriendlyName' => 'Live Mode',
+            'Type' => 'radio',
+            'Options' => 'Yes,No',
+            'Default' => 'No',
+            'Description' => '<small>Select "Yes" if you want to use the payment gateway in Production Mode or "No" if you want to use it in Staging Mode.</small>
+            <script>
+            $(document).ready(function(){
+                function toggleDisplay(selectedValue) {
+                    if (\'Yes\' === selectedValue) {
+                        $(\'input[name="field[staging_site_id]"]\').closest(\'tr\').hide();
+                        $(\'input[name="field[staging_secret_key]"]\').closest(\'tr\').hide();
+                        $(\'input[name="field[live_site_id]"]\').closest(\'tr\').show();
+                        $(\'input[name="field[live_secret_key]"]\').closest(\'tr\').show();
+                    } else if (\'No\' === selectedValue) {
+                        $(\'input[name="field[staging_site_id]"]\').closest(\'tr\').show();
+                        $(\'input[name="field[staging_secret_key]"]\').closest(\'tr\').show();
+                        $(\'input[name="field[live_site_id]"]\').closest(\'tr\').hide();
+                        $(\'input[name="field[live_secret_key]"]\').closest(\'tr\').hide();
+                    }
+                }
+
+                toggleDisplay($(\'input[name="field[live_mode]"]:checked\').val());
+                $(\'input[name="field[live_mode]"]\').change(function(){
+                    toggleDisplay($(\'input[name="field[live_mode]"]:checked\').val());
+                });
+            });
+            </script>
+            ',
         ),
+
+        /** Details of the live site ID field. */
         'live_site_id' => array(
-            'FriendlyName' => 'Live Account ID',
+            'FriendlyName' => 'Live Site ID',
             'Type' => 'text',
-            'Size' => '25',
+            'Size' => '100',
             'Default' => '',
-            'Description' => 'Enter your site account ID here',
+            'Description' => '<br/><small>Enter the Site ID for Live Mode. You can get one from <a href="https://merchant.twispay.com/login">here</a>.</small>',
         ),
 
+        /** Details of the live secret key field. */
         'live_secret_key' => array(
             'FriendlyName' => 'Live Secret Key',
-            'Type' => 'password',
-            'Size' => '25',
-            'Default' => '',
-            'Description' => 'Enter site secret key here',
-        ),
-
-        'staging_site_id' => array(
-            'FriendlyName' => 'Staging Account ID',
             'Type' => 'text',
-            'Size' => '25',
+            'Size' => '100',
             'Default' => '',
-            'Description' => 'Enter your staging account ID here',
+            'Description' => '<br/><small>Enter the Secret Key for Live Mode. You can get one from <a href="https://merchant.twispay.com/login">here</a>.</small>',
         ),
 
+        /** Details of the staging site ID field. */
+        'staging_site_id' => array(
+            'FriendlyName' => 'Staging Site ID',
+            'Type' => 'text',
+            'Size' => '100',
+            'Default' => '',
+            'Description' => '<br/><small>Enter the Site ID for Staging Mode. You can get one from <a href="https://merchant-stage.twispay.com/login">here</a>.</small>',
+        ),
+
+        /** Details of the staging secret key field. */
         'staging_secret_key' => array(
             'FriendlyName' => 'Staging Secret Key',
-            'Type' => 'password',
-            'Size' => '25',
-            'Default' => '',
-            'Description' => 'Enter secret key here',
-        ),
-
-        's_t_s_notification' => array(
-            'FriendlyName' => 'Server-to-server notification URL<br/>Put this URL in your Twispay account: ',
             'Type' => 'text',
-            'Size' => '300',
-            'Default' => $baseurl .'/modules/gateways/callback/twispay_validate.php',
-            'Description' => $baseurl .'/modules/gateways/callback/twispay_validate.php',
-
+            'Size' => '100',
+            'Default' => '',
+            'Description' => '<br/><small>Enter the Secret Key for Staging Mode. You can get one from <a href="https://merchant-stage.twispay.com/login">here</a>:</small>',
         ),
+
+        /** Details of the server to server field. */
+        's2s_notification' => array(
+            'FriendlyName' => 'Server-to-server notification URL',
+            'Type' => 'text',
+            'Size' => '100',
+            'Default' => $baseurl . '/modules/gateways/callback/twispay_validate.php',
+            'Description' => '<input type="text" style="width:100%;" value="' . $baseurl . '/modules/gateways/callback/twispay_validate.php" disabled/><br/><small>Put <a href="' . $baseurl . '/modules/gateways/callback/twispay_validate.php' . '">this URL</a> in your Twispay account, <a href="https://merchant.twispay.com/login">here for Production (Live) Mode</a> or <a href="https://merchant-stage.twispay.com/login">here for Staging (Test) Mode</a>.</small>',
+        ),
+
+        /** Details of the redirect to a custom page field. */
         'redirect_page' => array(
-            'FriendlyName' => 'Redirect to custom page: <br/>Ex: <font color="#6495ed">/clientarea.php?action=services</font>',
+            'FriendlyName' => 'Redirect to custom page',
             'Type' => 'text',
-            'Size' => '300',
+            'Size' => '100',
             'Default' => '',
-            'Description' => 'Leave empty to redirect to order confirmation default page',
-
+            'Description' => '<br/><small>Leave empty to redirect to order confirmation default page (Ex: <font color="#6495ed">/clientarea.php?action=services</font>).</small>',
         ),
 
+        /** Details of the contact email field. */
+        'contact_email' => array(
+            'FriendlyName' => 'Contact email',
+            'Type' => 'text',
+            'Size' => '100',
+            'Default' => '',
+            'Description' => '<br/><small>This email will be used on the payment error page.</small>',
+        ),
     );
 }
 
 /**
  * Payment link.
  *
- * Required by third party payment gateway modules only.
- *
  * Defines the HTML output displayed on an invoice. Typically consists of an
  * HTML form that will take the user to the payment gateway endpoint.
  *
  * @param array $params Payment Gateway Module Parameters
- *
- * @see https://developers.whmcs.com/payment-gateways/third-party-gateway/
  *
  * @return string
  */
