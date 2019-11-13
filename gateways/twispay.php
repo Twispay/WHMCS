@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Twispay Payment Gateway Module
  *
@@ -10,6 +11,44 @@
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
+
+/************************** Helper functions START **************************/
+use WHMCS\Database\Capsule;
+
+/**
+ * Function extracts an order ID based on a invoice ID.
+ * 
+ * @param invoice_id: Invoice ID to be used for search.
+ * 
+ * @return Integer orderId if found
+ *         NULL if not found
+ */
+function twispay_get_order_id($invoice_id = 0){
+    /** Check if NO invoice ID has been provided. */
+    if(empty($invoice_id)) {
+        return NULL;
+    }
+
+    try {
+        /** Extract all invoice items of type 'Invoice'. */
+        $multiple = Capsule::table('tblinvoiceitems')->select('relid')->where('invoiceid', $invoice_id)->get();
+
+        /** Check if any invoice items of type 'Invoice' has been found and extract the order ID. */
+        if(!empty($multiple)){
+            $orderid = Capsule::table('tblorders')->whereIn('invoiceid', $multiple)->pluck('id','invoiceid');
+        } else {
+            $orderid = Capsule::table('tblorders')->where('invoiceid', $invoice_id)->pluck('id','invoiceid');
+        }
+
+        return $orderid;
+    } catch (\Exception $e) {
+      logActivity('Failed to extract order from database!');
+
+      return NULL;
+    }
+}
+/************************** Helper functions END **************************/
+
 
 /**
  * Define module related meta data.
@@ -28,6 +67,7 @@ function twispay_MetaData()
         'TokenisedStorage' => false,
     );
 }
+
 
 /**
  * Define gateway configuration options.
@@ -159,6 +199,7 @@ function twispay_config()
     );
 }
 
+
 /**
  * Payment link.
  *
@@ -169,114 +210,35 @@ function twispay_config()
  *
  * @return string
  */
-use WHMCS\Database\Capsule;
-function twispay_get_order_id($invoice_id = 0){
-    if(!empty($invoice_id)) {
-        $invoice_items = Capsule::table('tblinvoiceitems')->where('invoiceid', $invoice_id)->get();
-        $multiple = array();
-        foreach($invoice_items as $invoices){
-            if($invoices->type == 'Invoice'){
-                array_push($multiple, $invoices->relid);
-            }
-        }
-        if(!empty($multiple)){
-            $orderid = Capsule::table('tblorders')->whereIn('invoiceid',$multiple)->pluck('id','invoiceid');
-        } else {
-            $orderid = Capsule::table('tblorders')->where('invoiceid', $invoice_id)->pluck('id','invoiceid');
-        }
-
-        return $orderid;
-    } else {
-        return false;
-    }
-
-}
 function twispay_link($params)
 {
+    /** Import helper classes. */
+    require_once(__DIR__ . "/twispay/lib/Twispay_Notification.php");
+    require_once(__DIR__ . "/twispay/lib/Twispay_Request.php");
 
-    $getorder = twispay_get_order_id($params['invoiceid']);
-    $orders = array();
-    if(!empty($getorder)){
-        foreach($getorder as $k=>$v){
-            $orders[] = localAPI('GetOrders', array('id'=>$v));
-        }
-
+    $inputs = NULL;
+    /** Check the order type if the order is of type 'purchase'. */
+    if (FALSE === getRecurringBillingValues($params['invoiceid'])) {
+        $inputs = Twispay_Request::purchaseRequest($params);
     } else {
-        $orders[] = localAPI('GetOrders', array('invoiceid'=>$params['invoiceid']));
+        logTransaction($GATEWAY["paymentmethod"], ['invoiceid' => $params['invoiceid']], "Recurrent orders not suported");
+        return Twispay_Notification::notice_to_checkout('TWISPAY_CONFIGURATION_ERROR');
     }
 
-    $postfields = array();
-    if(!empty($params['testMode'])) {
-        $action = 'https://secure-stage.twispay.com';
-        $postfields['siteId'] = $params['staging_site_id'];
-        $privateKEY = $params['staging_secret_key'];
-    } else {
-        $action = 'https://secure.twispay.com';
-        $postfields['siteId'] = $params['live_site_id'];
-        $privateKEY = $params['live_secret_key'];
-
-    }
-    $string_orders = implode('-', $getorder);
-    $langPayNow = $params['langpaynow'];
+    $page = explode('/', $_SERVER['PHP_SELF']);
+    $page = trim($page[count($page) - 1]);
 
 
-    /* Define data for form inputs */
-
-    $postfields['identifier'] = '_' . $params['clientdetails']['userid'];
-    $postfields['amount'] = $params['amount'];
-    $postfields['backUrl'] = $params['systemurl'] . 'modules/gateways/callback/' . $params['paymentmethod'] . '.php';
-    $postfields['currency'] = $params['currency'];
-    $postfields['description'] = (empty($params['clientdetails']['companyname'])) ? trim(ucwords($params['clientdetails']['firstname'] . ' ' .        $params['clientdetails']['lastname'])) . ' - Invoice #' . $params['invoiceid'] :  $params["description"];
-    $postfields['orderType'] = 'purchase';
-    $postfields['orderId'] = $string_orders ;
-    $postfields['orderId'] .= '_' . time();
-    $postfields['firstName'] = $params['clientdetails']['firstname'];
-    $postfields['lastName'] = $params['clientdetails']['lastname'];
-    $postfields['country'] = $params['clientdetails']['country'];
-    $postfields['city'] = $params['clientdetails']['city'];
-    $postfields['firstName'] = $params['clientdetails']['firstname'];
-    $postfields['zipCode'] = $params['clientdetails']['postcode'];
-    $postfields['address'] = $params['clientdetails']['address1'];
-    $postfields['address'] .= (!empty($params['clientdetails']['address2'])) ?', ' . $params['clientdetails']['address2'] : '';
-    $postfields['phone'] = $params['clientdetails']['phonenumber'];
-    $postfields['email'] = $params['clientdetails']['email'];
-    $postfields['custom[original_invoice]'] = $params['invoiceid'];
-    $i= 0;
-     foreach($orders as $order){
-         foreach($order['orders']['order'][0]['lineitems']['lineitem'] as $item){
-            $postfields['item[' . $i . ']'] = $item['product'];
-            $postfields['units[' . $i . ']'] = '1';
-            $postfields['unitPrice[' . $i . ']'] = $item['amount']->toNumeric();
-            $postfields['subTotal[' . $i . ']'] = number_format( ( float )$postfields['unitPrice[' . $i . ']'], 2 );
-            $postfields['orderTags[' . $i . ']'] = $item['producttype'];
-            $postfields['custom[' . $i . '][billingcycle]'] = ucfirst($item['billingcycle']);
-                $postfields['custom[' . $i . '][siteordernumber]'] = (string)$order['orders']['order'][0]['ordernum'];
-            ++$i;
-        }
-    }
-
-    $page = explode('/',$_SERVER['PHP_SELF']);
-    $page = trim($page[count($page)-1]);
-     /* CardTransactionMode */
-    $postfields['cardTransactionMode'] = 'authAndCapture';
-    /* Checksum */
-    ksort($postfields);
-    $query = http_build_query($postfields);
-    $encoded = hash_hmac('sha512', $query, $privateKEY, true);
-    $checksum = base64_encode($encoded);
-
-    $htmlOutput = '<form accept-charset="UTF-8" id="twispay_payment_form" method="POST" action="' . $action . '">';
-    foreach ($postfields as $k => $v) {
-        $htmlOutput .= '<input type="hidden" name="' . $k . '" value="' . $v . '" />';
-    }
-    $htmlOutput .= '<input type="hidden" name="checksum" value="' . $checksum . '" />';
+    $htmlOutput = '<form accept-charset="UTF-8" id="twispay_payment_form" method="POST" action="' . $inputs['url'] . '">';
+    $htmlOutput .= '<input type="hidden" name="jsonRequest" value="' . $inputs['jsonRequest'] . '" />';
+    $htmlOutput .= '<input type="hidden" name="checksum" value="' . $inputs['checksum'] . '" />';
 
     if($page !='cart.php') {
-        $htmlOutput .= '<button type="submit" class="btn btn-success btn-sm" id="btnPayNow"><i class="fa fa-credit-card"></i>&nbsp; ' . $langPayNow . '</button>';
+        $htmlOutput .= '<button type="submit" class="btn btn-success btn-sm" id="btnPayNow"><i class="fa fa-credit-card"></i>&nbsp; ' . $params['langpaynow'] . '</button>';
     }
     $htmlOutput .= '</form>';
-    return $htmlOutput;
 
+    return $htmlOutput;
 }
 
 /**
