@@ -6,6 +6,7 @@
  * @package     Twispay_Payment_Gateway
  * @author      Twispay
  */
+if ( ! class_exists( 'Twispay_Config' ) ) : /* Security class check */
 class Twispay_Config
 {
     /* The URLs for production and staging. */
@@ -58,7 +59,7 @@ class Twispay_Config
         /** Extract the configuration values. */
         $params = getGatewayVariables('twispay');
 
-        return (isset($params['redirect_page'])) ? ($params['redirect_page']) : ('');
+        return (isset($params['redirect_page'])) ? ($params['redirect_page']) : (App::getSystemUrl() . 'cart.php?a=complete');
     }
 
 
@@ -153,9 +154,7 @@ class Twispay_Config
      */
     public function getBackUrl()
     {
-        /** Extract the configuration values. */
-        $params = getGatewayVariables('twispay');
-
-        return $params['systemurl'] . 'modules/gateways/callback/' . $params['paymentmethod'] . '.php';
+        return App::getSystemUrl() . 'modules/gateways/callback/twispay.php';
     }
 }
+endif; /* End if class_exists. */

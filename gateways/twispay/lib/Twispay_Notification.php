@@ -6,60 +6,81 @@
  * @package  Twispay_Payment_Gateway 
  * @author   Twistpay
  */
+if ( ! class_exists( 'Twispay_Notification' ) ) : /* Security class check */
 class Twispay_Notification
 {
     /**
-     * Print a HTML notice with cart redirect button.
+     * Function that prints a HTML notice with cart redirect button.
      *
      * @param text: Notice content.
-     * @param retry_url: URL of the notice redirect button that is printed.
+     * @param extra: Extra data to be appended to the error message.
      *
      * @return void
      */
-    public static function notice_to_cart($text = '', $retry_url = '')
+    public static function notice_to_cart($text = '', $extra = '')
     {
-        if (!strlen($retry_url)) {
-            $retry_url = $CONFIG["SystemURL"] . 'cart.php?a=view';
-        }
-        Twispay_Notification::print_notice($retry_url, $text);
+        Twispay_Notification::print_notice(App::getSystemUrl() . 'cart.php?a=view', $text, $extra);
     }
 
 
     /**
-     * Print a HTML notice with checkout redirect button.
+     * Function that prints a HTML notice with checkout redirect button.
      *
      * @param text: Notice content.
-     * @param retry_url: URL of the notice redirect button that is printed.
+     * @param extra: Extra data to be appended to the error message.
      *
      * @return void
      */
-    public static function notice_to_checkout($text = '', $retry_url = '')
+    public static function notice_to_checkout($text = '', $extra = '')
     {
-        if (!strlen($retry_url)) {
-            $retry_url = $CONFIG["SystemURL"] . 'cart.php?a=checkout';
-        }
-        Twispay_Notification::print_notice($retry_url, $text);
+        Twispay_Notification::print_notice(App::getSystemUrl() . 'cart.php?a=checkout', $text, $extra);
     }
+
+
+    /**
+     * Function that returns a translated message.
+     * 
+     * @param key: The key for identifing the message.
+     * 
+     * @return String|'' The transtaled message if found or empty string.
+     */
+    public static function translate($key)
+    {
+        /** Include the module texts. */
+        if ('romanian' == $CONFIG["Language"]) {
+            require(__DIR__ . "/../lang/romanian.php");
+        } else {
+            require(__DIR__ . "/../lang/english.php");
+        }
+
+        return (isset($_LANG[$key]) ? ($_LANG[$key]) : ($key));
+    }
+
+
     /**
      * Prints HTML notice.
      *
      * @param retry_url: URL of the notice redirect button that is printed.
      * @param text: Notice content.
+     * @param extra: Extra data to be appended to the error message.
      *
      * @return void
      */
-    private static function print_notice($retry_url, $text)
+    private static function print_notice($retry_url, $text, $extra)
     {
         /** Include the module texts. */
-        require_once(__DIR__ . "/../lang/english.php");
-        require_once(__DIR__ . "/../lang/romanian.php");
+        if ('romanian' == $CONFIG["Language"]) {
+            require_once(__DIR__ . "/../lang/romanian.php");
+        } else {
+            require_once(__DIR__ . "/../lang/english.php");
+        }
         /** Import helper class. */
-        require_once(__DIR__ . "/Twispay_Config.php");
+        require(__DIR__ . "/Twispay_Config.php");
         ?>
           <div class="error notice" style="margin-top: 20px;">
               <h3><?= $_LANG['TWISPAY_GENERAL_ERROR_TITLE']; ?></h3>
               <?php if (strlen($text)) { ?>
-                  <span><?= $_LANG[$text]; ?></span>
+                  <span><?= $_LANG[$text] . $extra; ?></span>
               <?php } ?>
 
               <?php if ('' == Twispay_Config::getContactEmail()) { ?>
@@ -71,3 +92,4 @@ class Twispay_Notification
         <?php
     }
 }
+endif; /* End if class_exists. */

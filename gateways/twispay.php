@@ -99,7 +99,6 @@ function twispay_config()
         'FriendlyName' => array(
             'Type' => 'System',
             'Value' => 'Twispay',
-            'Description' => '<br/><small>Pay by debit or credit card.</small>',
         ),
 
         /** Details and logic for field that contolls at wchich environment (production or staging) the platform connects. */
@@ -221,8 +220,9 @@ function twispay_link($params)
     if (FALSE === getRecurringBillingValues($params['invoiceid'])) {
         $inputs = Twispay_Request::purchaseRequest($params);
     } else {
-        logTransaction($GATEWAY["paymentmethod"], ['invoiceid' => $params['invoiceid']], "Recurrent orders not suported");
-        return Twispay_Notification::notice_to_checkout('TWISPAY_CONFIGURATION_ERROR');
+        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'message' => Twispay_Notification::translate('TWISPAY_RECURRENT_NOT_SUPPORTED')], "Recurrent orders not suported");
+        Twispay_Notification::notice_to_checkout('TWISPAY_RECURRENT_NOT_SUPPORTED');
+        return;
     }
 
     $page = explode('/', $_SERVER['PHP_SELF']);
@@ -240,6 +240,7 @@ function twispay_link($params)
 
     return $htmlOutput;
 }
+
 
 /**
  * Refund transaction.
@@ -290,5 +291,4 @@ function twispay_refund($params)
             'transid'   => $json->data->transactionId,
         ) ;
     }
-
 }
