@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 /**
  * Twispay payment gateway request builder file.
@@ -42,9 +42,9 @@ class Twispay_Request
     /**
      * Function that builds the JSON that needs to be sent to the server
      *  for a purchase command.
-     * 
+     *
      * @param params Array containing all the data needed to build the request.
-     * 
+     *
      * @return Array Containing encoded 'jsonRequest' the 'checksum' and the 'url'.
      */
     public static function purchaseRequest($params)
@@ -58,13 +58,13 @@ class Twispay_Request
         $siteId = Twispay_Config::getSiteId();
         $apiKey = Twispay_Config::getApiKey();
 
-        if(('' == $siteId) || ('' == $apiKey)){
-            logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'liveMode' => $params['live_mode'], 'siteId' => $siteId, 'apiKey' => $apiKey, 'message' => Twispay_Notification::translate('TWISPAY_CONFIGURATION_ERROR')], "Configuration Error");
+        if (('' == $siteId) || ('' == $apiKey)) {
+            logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'liveMode' => $params['live_mode'], 'siteId' => $siteId, 'apiKey' => $apiKey, 'message' => Twispay_Notification::translate('TWISPAY_CONFIGURATION_ERROR')], "Configuration error");
             Twispay_Notification::notice_to_checkout('TWISPAY_CONFIGURATION_ERROR');
             /** Stop the execution. */
             die();
         }
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'liveMode' => $params['live_mode'], 'siteId' => $siteId, 'apiKey' => $apiKey], "Configuration Read");
+        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'liveMode' => $params['live_mode'], 'siteId' => $siteId, 'apiKey' => $apiKey], "Configuration read");
 
         /** Extract the customer details. */
         $customer = [ 'identifier' => 'p_wh_' . $params['clientdetails']['userid'] . '_' . date('YmdHis')
@@ -81,7 +81,7 @@ class Twispay_Request
         /** Extract the invoice transactions. */
         $invoice = localAPI(/*command*/'GetInvoice', /*postData*/['invoiceid' => $params['invoiceid']]);
 
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'invoice' => $invoice], "Invoice Extracted");
+        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'invoice' => $invoice], "Invoice extracted");
 
         /** Extract the invoice items details. */
         $items = [];
@@ -105,13 +105,13 @@ class Twispay_Request
                      , 'invoiceEmail' => ''
                      , 'backUrl' => Twispay_Config::getBackUrl()
                      ];
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'orderData' => $orderData], "Request JSON Completed");
+        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'orderData' => $orderData], "Request JSON completed");
 
         /* Encode the data and calculate the checksum. */
         $jsonRequest = self::getBase64JsonRequest($orderData);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'jsonRequest' => $jsonRequest], "Encoded JSON Request");
+        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'jsonRequest' => $jsonRequest], "Encoded JSON request");
         $checksum = self::getBase64Checksum($orderData, $apiKey);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'checksum' => $checksum], "Encoded JSON Checksum");
+        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'checksum' => $checksum], "Encoded JSON checksum");
 
         return ['jsonRequest' => $jsonRequest, 'checksum' => $checksum, 'url' => $url];
     }

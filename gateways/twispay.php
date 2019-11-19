@@ -17,9 +17,9 @@ use WHMCS\Database\Capsule;
 
 /**
  * Function extracts an order ID based on a invoice ID.
- * 
+ *
  * @param invoice_id: Invoice ID to be used for search.
- * 
+ *
  * @return Integer orderId if found
  *         NULL if not found
  */
@@ -174,8 +174,8 @@ function twispay_config()
             'FriendlyName' => 'Server-to-server notification URL',
             'Type' => 'text',
             'Size' => '100',
-            'Default' => $baseurl . '/modules/gateways/callback/twispay_validate.php',
-            'Description' => '<input type="text" style="width:100%;" value="' . $baseurl . '/modules/gateways/callback/twispay_validate.php" disabled/><br/><small>Put <a href="' . $baseurl . '/modules/gateways/callback/twispay_validate.php' . '">this URL</a> in your Twispay account, <a href="https://merchant.twispay.com/login">here for Production (Live) Mode</a> or <a href="https://merchant-stage.twispay.com/login">here for Staging (Test) Mode</a>.</small>',
+            'Default' => $baseurl . '/modules/gateways/callback/twispay_ipn.php',
+            'Description' => '<input type="text" style="width:100%;" value="' . $baseurl . '/modules/gateways/callback/twispay_ipn.php" disabled/><br/><small>Put <a href="' . $baseurl . '/modules/gateways/callback/twispay_ipn.php' . '">this URL</a> in your Twispay account, <a href="https://merchant.twispay.com/login">here for Production (Live) Mode</a> or <a href="https://merchant-stage.twispay.com/login">here for Staging (Test) Mode</a>.</small>',
         ),
 
         /** Details of the redirect to a custom page field. */

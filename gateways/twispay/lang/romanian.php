@@ -20,7 +20,9 @@ $_LANG['TWISPAY_GENERAL_ERROR_DESC_S']         = ' administratorul site-ului.';
 $_LANG['TWISPAY_NULL_RESPONSE'] = 'Raspunsul primit este gol.';
 $_LANG['TWISPAY_DECRIPTION_FAILED'] = 'Decriptarea raspunsului a esuat.';
 $_LANG['TWISPAY_VALIDATION_FAILED'] = 'Validarea raspunsului a esuat.';
+$_LANG['TWISPAY_TRANSACTION_PROCESSED'] = 'Tranzactie deja procesata.';
 $_LANG['TWISPAY_RECURRENT_NOT_SUPPORTED'] = 'Comenzile recurente su sunt suportate.';
+$_LANG['TWISPAY_TRANSACTION_PARENT'] = 'Extragerea parintelui tranzactiei a esuat.';
 /** Validation errors. */
 $_LANG['TWISPAY_EMPTY_STATUS'] = '[RASPUNS-EROARE]: Lipseste starea';
 $_LANG['TWISPAY_EMPTY_IDENTIFIER'] = '[RASPUNS-EROARE]: Lipseste identificatorul';
@@ -32,5 +34,8 @@ $_LANG['TWISPAY_RESPONSE_DATA'] = '[RASPUNS]: Data: ';
 $_LANG['TWISPAY_VALIDATION_COMPLETE'] = '[RASPUNS]: Validare completa pentru comanda ID: ';
 
 /** Responses */
-$_LANG['TWISPAY_STATUS_FAILED'] = '[RASPUNS]: Stare esuata pentru comanda cu ID-ul:';
-$_LANG['TWISPAY_STATUS_SUCCESS'] = '[RAPUNS]: Stare de succes pentru comanda cu ID-ul:';
+$_LANG['TWISPAY_STATUS_FAILED'] = '[RASPUNS]: Stare de "esuare" pentru comanda cu ID-ul:';
+$_LANG['TWISPAY_STATUS_SUCCESS'] = '[RAPUNS]: Stare de "succes" pentru comanda cu ID-ul:';
+$_LANG['TWISPAY_STATUS_CANCEL'] = '[RAPUNS]: Stare de "anulare" pentru comanda cu ID-ul:';
+$_LANG['TWISPAY_STATUS_PENDING'] = '[RAPUNS]: Stare de "plata in asteptare" pentru comanda cu ID-ul:';
+$_LANG['TWISPAY_STATUS_REFUND'] = '[RESPONSE]: Stare de "plata rambursata" pentru comanda cu ID-ul:';

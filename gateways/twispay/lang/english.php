@@ -21,7 +21,9 @@ $_LANG['TWISPAY_GENERAL_ERROR_DESC_S']         = ' the website administrator.';
 $_LANG['TWISPAY_NULL_RESPONSE'] = 'NULL response received.';
 $_LANG['TWISPAY_DECRIPTION_FAILED'] = 'Failed to decript the response.';
 $_LANG['TWISPAY_VALIDATION_FAILED'] = 'Failed to validate the response.';
+$_LANG['TWISPAY_TRANSACTION_PROCESSED'] = 'Transaction allready processed.';
 $_LANG['TWISPAY_RECURRENT_NOT_SUPPORTED'] = 'Recurrent orders not suported.';
+$_LANG['TWISPAY_TRANSACTION_PARENT'] = 'Failed to extract the parent of the transaction.';
 /** Validation errors. */
 $_LANG['TWISPAY_EMPTY_STATUS'] = '[RESPONSE-ERROR]: Empty status';
 $_LANG['TWISPAY_EMPTY_IDENTIFIER'] = '[RESPONSE-ERROR]: Empty identifier';
@@ -35,3 +37,6 @@ $_LANG['TWISPAY_VALIDATION_COMPLETE'] = '[RESPONSE]: Validating completed for or
 /** Responses */
 $_LANG['TWISPAY_STATUS_FAILED'] = '[RESPONSE]: Status failed for order ID:';
 $_LANG['TWISPAY_STATUS_SUCCESS'] = '[RESPONSE]: Status success for order ID:';
+$_LANG['TWISPAY_STATUS_CANCEL'] = '[RESPONSE]: Status cancel-ok for order ID:';
+$_LANG['TWISPAY_STATUS_PENDING'] = '[RESPONSE]: Status three-d-pending for order ID:';
+$_LANG['TWISPAY_STATUS_REFUND'] = '[RESPONSE]: Status refund-ok for order ID:';

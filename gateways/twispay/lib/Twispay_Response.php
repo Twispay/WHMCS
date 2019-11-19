@@ -1,4 +1,6 @@
-<?php 
+<?php
+
+use WHMCS\Database\Capsule;
 
 /**
  * Twispay payment gateway responce helper file.
@@ -109,7 +111,7 @@ class Twispay_Response
         }
 
         if (sizeof($tw_errors)) {
-            logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $tw_response, 'errors' => $tw_errors], "Validation Failed");
+            logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $tw_response, 'errors' => $tw_errors], 'Validation failed');
 
             return FALSE;
         } else {
@@ -122,15 +124,15 @@ class Twispay_Response
                     , 'cardId'          => (!empty($tw_response['cardId'])) ? (( int )$tw_response['cardId']) : (0)
                     , 'amount'          => (int)$tw_response['amount']];
 
-            logTransaction(/*gatewayName*/'twispay', /*debugData*/['message' => Twispay_Notification::translate('TWISPAY_RESPONSE_DATA') . json_encode($data)], "Response Data");
+            logTransaction(/*gatewayName*/'twispay', /*debugData*/['message' => Twispay_Notification::translate('TWISPAY_RESPONSE_DATA') . json_encode($data)], 'Response data');
 
             if (!in_array($data['status'], self::$resultStatuses)) {
-                logTransaction(/*gatewayName*/'twispay', /*debugData*/['message' => Twispay_Notification::translate('TWISPAY_WRONG_STATUS') . $data['status']], "Wrong status");
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['message' => Twispay_Notification::translate('TWISPAY_WRONG_STATUS') . $data['status']], 'Wrong status');
 
                 return FALSE;
             }
 
-            logTransaction(/*gatewayName*/'twispay', /*debugData*/['message' => Twispay_Notification::translate('TWISPAY_VALIDATION_COMPLETE') . $data['externalOrderId']], "Validation Completed");
+            logTransaction(/*gatewayName*/'twispay', /*debugData*/['message' => Twispay_Notification::translate('TWISPAY_VALIDATION_COMPLETE') . $data['externalOrderId']], 'Validation completed');
 
             return TRUE;
         }
@@ -138,22 +140,152 @@ class Twispay_Response
 
 
     /**
-     * Functin that processes a back URL respone for a purchase order.
+     * Function that checks if transaction exists.
      *
-     * @param invoiceId: The ID of the invoice for which the response if for.
+     * @param transactionIn: The IF of the transaction to be checked.
+     *
+     * @return bool(FALSE)     - If transaction exists
+     *         bool(TRUE)      - If transaction does NOT exist
+     */
+    public static function checkTransID($transactionId)
+    {
+        return Capsule::table('tblaccounts')->where('transid', $transactionId)->exists();
+    }
+
+
+    /**
+     * Function that processes a back URL respone for a purchase order.
+     *
+     * @param invoiceId: The ID of the invoice for which the response is for.
      * @param response: The decrypted server response.
      *
      * @return bool(FALSE)     - If server status in: [COMPLETE_FAIL, THREE_D_PENDING]
      *         bool(TRUE)      - If server status in: [IN_PROGRESS, COMPLETE_OK]
      */
-    public static function procesResponse_purchase_backUrl($invoiceId, $response)
+    public static function processResponse_purchase_backUrl($invoiceId, $response)
     {
         switch ($response['status']) {
             case self::$resultStatuses['COMPLETE_FAIL']:
-            case self::$resultStatuses['THREE_D_PENDING']:
                 /** Save the transaction. */
-                logTransaction(/*gatewayName*/'twispay', /*debugData*/$response, $response['status'], ['message' => Twispay_Notification::translate('TWISPAY_STATUS_FAILED') . $invoiceId]);
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response, 'status' => $response['status']], 'Twispay BackUrl PROCESS: ' . Twispay_Notification::translate('TWISPAY_STATUS_FAILED') . $invoiceId);
                 return FALSE;
+            break;
+
+            case self::$resultStatuses['THREE_D_PENDING']:
+                /** Set the invoice status to "Payment Pending" */
+                WHMCS\Billing\Invoice::findOrFail($invoiceId)->update(['status' => 'Payment Pending']);
+
+                /** Save the transaction. */
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response, 'status' => $response['status']], 'Twispay BackUrl PROCESS: ' . Twispay_Notification::translate('TWISPAY_STATUS_FAILED') . $invoiceId);
+                return FALSE;
+
+            case self::$resultStatuses['IN_PROGRESS']:
+            case self::$resultStatuses['COMPLETE_OK']:
+              /** Add payment. */
+              addInvoicePayment($invoiceId, $response['transactionId'], $response['amount'], /*fees*/0, /*gateway*/'twispay');
+              /** Save the transaction. */
+              logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response, 'status' => $response['status']], 'Twispay BackUrl PROCESS: ' . Twispay_Notification::translate('TWISPAY_STATUS_SUCCESS') . $invoiceId);
+              return TRUE;
+            break;
+
+            default:
+                /** Save the transaction. */
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response, 'status' => $response['status']], 'Twispay BackUrl PROCESS: ' . Twispay_Notification::translate('TWISPAY_WRONG_STATUS') . $response['status']);
+                return FALSE;
+            break;
+        }
+    }
+
+
+    /**
+     * Function that processes a IPN respone for a purchase order.
+     *
+     * @param invoiceId: The ID of the invoice for which the response is for.
+     * @param response: The decrypted server response.
+     *
+     * @return bool(FALSE)     - If server status in: [COMPLETE_FAIL, VOID_OK, CHARGE_BACK, CANCEL_OK, THREE_D_PENDING]
+     *         bool(TRUE)      - If server status in: [REFUND_OK, IN_PROGRESS, COMPLETE_OK]
+     */
+    public static function processResponse_purchase_IPN($invoiceId, $response)
+    {
+        switch ($response['status']) {
+            case self::$resultStatuses['COMPLETE_FAIL']:
+            case self::$resultStatuses['VOID_OK']:
+            case self::$resultStatuses['CHARGE_BACK']:
+                /** Save the transaction. */
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response, 'status' => $response['status']], 'Twispay IPN PROCESS: ' . Twispay_Notification::translate('TWISPAY_STATUS_FAILED') . $invoiceId);
+                return FALSE;
+            break;
+
+            case self::$resultStatuses['CANCEL_OK']:
+                /** Set the invoice status to 'Cancelled' */
+                WHMCS\Billing\Invoice::findOrFail($invoiceId)->update(['status' => 'Cancelled']);
+
+                /** Save the transaction. */
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response, 'status' => $response['status']], 'Twispay IPN PROCESS: ' . Twispay_Notification::translate('TWISPAY_STATUS_CANCEL') . $invoiceId);
+                return FALSE;
+            break;
+
+            case self::$resultStatuses['THREE_D_PENDING']:
+                /** Set the invoice status to 'Payment Pending' */
+                WHMCS\Billing\Invoice::findOrFail($invoiceId)->update(['status' => 'Payment Pending']);
+
+                /** Save the transaction. */
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response, 'status' => $response['status']], 'Twispay IPN PROCESS: ' . Twispay_Notification::translate('TWISPAY_STATUS_PENDING') . $invoiceId);
+                return FALSE;
+            break;
+
+            case self::$resultStatuses['REFUND_OK']:
+                /** Import helper class. */
+                require_once(__DIR__ . "/Twispay_Api.php");
+
+                $parentTransactionId = Twispay_Api::getParentTransactionId($response['transactionId']);
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['parentTransactionId' => $parentTransactionId], 'Twispay IPN PROCESS: Parent transaction ID extracted');
+
+                /** Extract the parent transaction. */
+                $parentTransaction = WHMCS\Billing\Payment\Transaction::where('transid', $parentTransactionId)->first();
+                if (NULL == $parentTransaction) {
+                    return FALSE;
+                }
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['parentTransaction' => $parentTransaction], 'Twispay IPN PROCESS: Parent transaction extracted');
+
+                /** Extract the invoice. */
+                $invoice = WHMCS\Billing\Invoice::findOrFail($invoiceId);
+                if (NULL == $invoice) {
+                    return FALSE;
+                }
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoice' => $invoice], 'Twispay IPN PROCESS: Invoice extracted');
+
+                /** Calculate 'fees'. */
+                $fees = $parentTransaction->fees;
+                $alreadyrefundedfees = WHMCS\Billing\Payment\Transaction::selectRaw('SUM(fees) as alreadyrefundedfees')->where('refundid', $parentTransaction->id)->first()->alreadyrefundedfees;
+                $fees -= $alreadyrefundedfees * -1;
+                if ($fees <= 0) {
+                    $fees = 0;
+                }
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['alreadyrefundedfees' => $alreadyrefundedfees], 'Twispay IPN PROCESS: "alreadyrefundedfees" calculated');
+
+                addtransaction($invoice->userid, /*currencyid*/0, /*description*/'Refund of Transaction ID ' . $parentTransaction->transactionId, /*amountin*/0, $fees * -1, $response['amount'], /*gateway*/'twispay', /*refundtransid*/$response['transactionId'], $invoiceId, /*date*/'', $parentTransaction->id, $parentTransaction->exchangeRate);
+                logActivity('Refunded Invoice Payment - Invoice ID: ' . $invoiceId . ' - Transaction ID: ' . $parentTransaction->id, $invoice->userid);
+
+                $invoicetotalpaid = WHMCS\Billing\Payment\Transaction::selectRaw('SUM(amountin) as invoicetotalpaid')->where('invoiceid', $invoiceId)->first()->invoicetotalpaid;
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoicetotalpaid' => $invoicetotalpaid], 'Twispay IPN PROCESS: "invoicetotalpaid" calculated');
+                $invoicetotalrefunded = WHMCS\Billing\Payment\Transaction::selectRaw('SUM(amountout) as invoicetotalrefunded')->where('invoiceid', $invoiceId)->first()->invoicetotalrefunded;
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoicetotalrefunded' => $invoicetotalrefunded], 'Twispay IPN PROCESS: "invoicetotalrefunded" calculated');
+
+                if (0 >= ($invoicetotalpaid - $invoicetotalrefunded - $response['amount'])) {
+                    /** Set invoice status to 'Refunded' */
+                    $invoice->status = 'Refunded';
+                    $invoice->save();
+                    logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoice' => $invoice], 'Twispay IPN PROCESS: Invoice status updated');
+                    /** Execute refund hook. */
+                    run_hook('InvoiceRefunded', ['invoiceid' => $invoiceId]);
+                    logTransaction(/*gatewayName*/'twispay', /*debugData*/[], 'Twispay IPN PROCESS: Refund hook executed');
+                }
+
+                /** Save the transaction. */
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response], 'Twispay IPN PROCESS: ' . Twispay_Notification::translate('TWISPAY_STATUS_REFUND') . $invoiceId);
+                return TRUE;
             break;
 
             case self::$resultStatuses['IN_PROGRESS']:
@@ -161,13 +293,13 @@ class Twispay_Response
               /** Add payment. */
               addInvoicePayment($invoiceId, $response['transactionId'], $response['amount'], /*fees*/0, /*gateway*/'twispay');
               /** Save the transaction. */
-              logTransaction(/*gatewayName*/'twispay', /*debugData*/$response, $response['status'], ['message' => Twispay_Notification::translate('TWISPAY_STATUS_SUCCESS') . $invoiceId]);
+              logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response, 'status' => $response['status']], 'Twispay IPN PROCESS: ' . Twispay_Notification::translate('TWISPAY_STATUS_SUCCESS') . $invoiceId);
               return TRUE;
             break;
 
             default:
                 /** Save the transaction. */
-                logTransaction(/*gatewayName*/'twispay', /*debugData*/$response, $response['status'], ['message' => Twispay_Notification::translate('TWISPAY_WRONG_STATUS') . $response['status']]);
+                logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response, 'status' => $response['status']], 'Twispay IPN PROCESS: ' . Twispay_Notification::translate('TWISPAY_WRONG_STATUS') . $response['status']);
                 return FALSE;
             break;
         }
