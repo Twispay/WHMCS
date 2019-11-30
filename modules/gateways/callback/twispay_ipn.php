@@ -63,16 +63,11 @@ if (Twispay_Response::checkTransID($decrypted['transactionId'])) {
 }
 logTransaction(/*gatewayName*/'twispay', /*debugData*/[], 'Twispay IPN: Transaction uniqueness confirmed');
 
-/** Check the response type and proces the response. */
-if ('p' == $decrypted['identifier'][0]) {
-    $statusUpdate = Twispay_Response::processResponse_purchase_IPN($invoiceId, $decrypted);
+/** Proces the response. */
+$statusUpdate = Twispay_Response::processResponse_IPN($invoiceId, $decrypted);
 
-    if (FALSE === $statusUpdate) {
-        die(Twispay_Notification::translate('TWISPAY_STATUS_FAILED') . $invoiceId);
-    }
-
-    die('OK');
-} else {
-    logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceId' => $invoiceId, 'message' => Twispay_Notification::translate('TWISPAY_RECURRENT_NOT_SUPPORTED')], 'Twispay IPN: Recurrent orders not suported');
-    die(Twispay_Notification::translate('TWISPAY_RECURRENT_NOT_SUPPORTED'));
+if (FALSE === $statusUpdate) {
+    die(Twispay_Notification::translate('TWISPAY_STATUS_FAILED') . $invoiceId);
 }
+
+die('OK');

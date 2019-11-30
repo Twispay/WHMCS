@@ -89,10 +89,7 @@ function twispay_MetaData()
 function twispay_config()
 {
     /** Calculate the base URL of the platform. */
-    $baseurl = ((!empty($_SERVER['HTTPS'])) ? ('https://') : ('http://')) . $_SERVER['HTTP_HOST'];
-
-    /** Hide the server to server default input */
-    echo '<style>input[name="field[s2s_notification]"]{display:none !important;}</style>';
+    $baseurl = \App::getSystemURL();
 
     /** Compose the return array. */
     return array(
@@ -169,13 +166,13 @@ function twispay_config()
             'Description' => '<br/><small>Enter the Secret Key for Staging Mode. You can get one from <a href="https://merchant-stage.twispay.com/login">here</a>:</small>',
         ),
 
-        /** Details of the server to server field. */
+        /** Details of the server to server field (Hide the server to server default generated input). */
         's2s_notification' => array(
             'FriendlyName' => 'Server-to-server notification URL',
             'Type' => 'text',
             'Size' => '100',
-            'Default' => $baseurl . '/modules/gateways/callback/twispay_ipn.php',
-            'Description' => '<input type="text" style="width:100%;" value="' . $baseurl . '/modules/gateways/callback/twispay_ipn.php" disabled/><br/><small>Put <a href="' . $baseurl . '/modules/gateways/callback/twispay_ipn.php' . '">this URL</a> in your Twispay account, <a href="https://merchant.twispay.com/login">here for Production (Live) Mode</a> or <a href="https://merchant-stage.twispay.com/login">here for Staging (Test) Mode</a>.</small>',
+            'Default' => $baseurl . 'modules/gateways/callback/twispay_ipn.php',
+            'Description' => '<input type="text" style="width:100%;" value="' . $baseurl . 'modules/gateways/callback/twispay_ipn.php" disabled/><br/><small>Put <a href="' . $baseurl . '/modules/gateways/callback/twispay_ipn.php' . '">this URL</a> in your Twispay account, <a href="https://merchant.twispay.com/login">here for Production (Live) Mode</a> or <a href="https://merchant-stage.twispay.com/login">here for Staging (Test) Mode</a>.</small> <style>input[name="field[s2s_notification]"]{display:none !important;}</style>',
         ),
 
         /** Details of the redirect to a custom page field. */
@@ -215,14 +212,14 @@ function twispay_link($params)
     require_once(__DIR__ . "/twispay/lib/Twispay_Notification.php");
     require_once(__DIR__ . "/twispay/lib/Twispay_Request.php");
 
+    logTransaction(/*gatewayName*/'twispay', /*debugData*/[], __FUNCTION__ . '::' . 'Payment request received');
+
     $inputs = NULL;
     /** Check the order type if the order is of type 'purchase'. */
     if (FALSE === getRecurringBillingValues($params['invoiceid'])) {
         $inputs = Twispay_Request::purchaseRequest($params);
     } else {
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'message' => Twispay_Notification::translate('TWISPAY_RECURRENT_NOT_SUPPORTED')], "Recurrent orders not suported");
-        Twispay_Notification::notice_to_checkout('TWISPAY_RECURRENT_NOT_SUPPORTED');
-        return;
+        $inputs = Twispay_Request::recurringRequest($params);
     }
 
     $page = explode('/', $_SERVER['PHP_SELF']);
@@ -255,40 +252,37 @@ function twispay_link($params)
  */
 function twispay_refund($params)
 {
-    $p = 'test';
-    $log_file = dirname(__FILE__).'/twispay_r_log.txt';
-    @file_put_contents($log_file,$p.PHP_EOL, FILE_APPEND);
-    $transid = $params['transid'];
-    if(!empty($params['testMode'])){
-        $url = 'https://api-stage.twispay.com/transaction/' . $transid;
-        $apiKey = $params['staging_secret_key'];
-    } else {
-        $url = 'https://api.twispay.com/transaction/' . $transid;
-        $apiKey = $params['live_secret_key'];
-    }
+    /** Import helper class. */
+    require_once(__DIR__ . "/twispay/lib/Twispay_Api.php");
+
+    logTransaction(/*gatewayName*/'twispay', /*debugData*/['params' => $params], __FUNCTION__ . '::' . 'Refund request received');
+
+    /** Perform API refund. */
+    return Twispay_Api::refund($params);
+}
 
 
-    $ch = curl_init();
+/**
+ * Cancel subscription.
+ *
+ * If the payment gateway creates subscriptions and stores the subscription
+ * ID in tblhosting.subscriptionid, this function is called upon cancellation
+ * or request by an admin user.
+ *
+ * @param array $params Payment Gateway Module Parameters
+ *
+ * @see https://developers.whmcs.com/payment-gateways/subscription-management/
+ *
+ * @return array Transaction response status
+ */
+function gatewaymodule_cancelSubscription($params)
+{
+    /** Import helper class. */
+    require_once(__DIR__ . "/twispay/lib/Twispay_Api.php");
 
-    curl_setopt( $ch, CURLOPT_HTTPHEADER, array( "Authorization: Bearer " . $apiKey, "Accept: application/json" ) );
-    curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "DELETE" );
-    curl_setopt( $ch, CURLOPT_URL, $url );
-    curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
+    logTransaction(/*gatewayName*/'twispay', /*debugData*/['params' => $params], __FUNCTION__ . '::' . 'Cancel subscription request received');
 
-    $contents = curl_exec( $ch );
-    curl_close( $ch );
-    $json = json_decode( $contents );
-    if($json->message == 'Success' ){
-        return array(
-            'status'    => 'success',
-            'rawdata'   => $json,
-            'transid'   => $json->data->transactionId,
-        ) ;
-    } else {
-        return array(
-            'status'    => 'failure',
-            'rawdata'   => $json,
-            'transid'   => $json->data->transactionId,
-        ) ;
-    }
+    /** Perform API cancel. */
+    return Twispay_Api::cancel($params);
+
 }
