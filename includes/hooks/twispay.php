@@ -11,7 +11,6 @@
 add_hook('DailyCronJob', 1, function($vars)
 {
     /** Load libraries needed for gateway module functions. */
-    require('../../../init.php');
     $whmcs->load_function('invoice');
     $whmcs->load_function('gateway');
 
