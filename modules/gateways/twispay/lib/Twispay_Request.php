@@ -70,8 +70,11 @@ class Twispay_Request
         }
         logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'liveMode' => $params['live_mode'], 'siteId' => $siteId, 'apiKey' => $apiKey], __FUNCTION__ . '::' . "Configuration read");
 
+        /** Save the timestamp of this payment. */
+        $timestamp = date('YmdHis');
+
         /** Extract the customer details. */
-        $customer = [ 'identifier' => 'p_wh_' . $params['clientdetails']['userid'] . '_' . date('YmdHis')
+        $customer = [ 'identifier' => 'p_wh_' . $params['clientdetails']['userid'] . '_' . $timestamp
                     , 'firstName' => $params['clientdetails']['firstname']
                     , 'lastName' => $params['clientdetails']['lastname']
                     , 'country' => $params['clientdetails']['countrycode']
@@ -84,8 +87,7 @@ class Twispay_Request
 
         /** Extract the invoice transactions. */
         $invoice = localAPI(/*command*/'GetInvoice', /*postData*/['invoiceid' => $params['invoiceid']]);
-
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'invoice' => $invoice], __FUNCTION__ . '::' . "Invoice extracted");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'invoice' => $invoice], __FUNCTION__ . '::' . "Invoice extracted");
 
         /** Extract the invoice items details. */
         $items = [];
@@ -99,7 +101,7 @@ class Twispay_Request
         /* Build the data object to be posted to Twispay. */
         $orderData = [ 'siteId' => $siteId
                      , 'customer' => $customer
-                     , 'order' => [ 'orderId' => $params['invoiceid']
+                     , 'order' => [ 'orderId' => $params['invoiceid'] . '_' . $timestamp
                                   , 'type' => 'purchase'
                                   , 'amount' => number_format(floatval($params['amount']), 2, '.', '')
                                   , 'currency' => $params['currency']
@@ -113,9 +115,9 @@ class Twispay_Request
 
         /* Encode the data and calculate the checksum. */
         $jsonRequest = self::getBase64JsonRequest($orderData);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'jsonRequest' => $jsonRequest], __FUNCTION__ . '::' . "Encoded JSON request");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'jsonRequest' => $jsonRequest], __FUNCTION__ . '::' . "Encoded JSON request");
         $checksum = self::getBase64Checksum($orderData, $apiKey);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'checksum' => $checksum], __FUNCTION__ . '::' . "Encoded JSON checksum");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'checksum' => $checksum], __FUNCTION__ . '::' . "Encoded JSON checksum");
 
         return ['jsonRequest' => $jsonRequest, 'checksum' => $checksum, 'url' => $url];
     }
@@ -148,8 +150,11 @@ class Twispay_Request
         }
         logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'liveMode' => $params['live_mode'], 'siteId' => $siteId, 'apiKey' => $apiKey], __FUNCTION__ . '::' . "Configuration read");
 
+        /** Save the timestamp of this payment. */
+        $timestamp = date('YmdHis');
+
         /** Extract the customer details. */
-        $customer = [ 'identifier' => 'r_wh_' . $params['clientdetails']['userid'] . '_' . date('YmdHis')
+        $customer = [ 'identifier' => 'r_wh_' . $params['clientdetails']['userid'] . '_' . $timestamp
                     , 'firstName' => $params['clientdetails']['firstname']
                     , 'lastName' => $params['clientdetails']['lastname']
                     , 'country' => $params['clientdetails']['countrycode']
@@ -168,15 +173,15 @@ class Twispay_Request
 
         /** Extract the recurringBillingValues for this invoice. */
         $recurringBillingValues = getRecurringBillingValues($params['invoiceid']);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['recurringBillingValues' => $recurringBillingValues], __FUNCTION__ . '::' . "Recurring billing values extracted");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['recurringBillingValues' => $recurringBillingValues], __FUNCTION__ . '::' . "Recurring billing values extracted");
 
         /** Extract the service for this invoice. */
         $service = WHMCS\Service\Service::findOrFail($recurringBillingValues['primaryserviceid']);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['service' => $service], __FUNCTION__ . '::' . "Service extracted");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['service' => $service], __FUNCTION__ . '::' . "Service extracted");
 
         /** Extract the invoice transactions. */
         $invoice = localAPI(/*command*/'GetInvoice', /*postData*/['invoiceid' => $params['invoiceid']]);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'invoice' => $invoice], __FUNCTION__ . '::' . "Invoice extracted");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'invoice' => $invoice], __FUNCTION__ . '::' . "Invoice extracted");
 
         /** Calculate the first billing date. */
         $daysTillFirstBillDate = 0;
@@ -246,7 +251,7 @@ class Twispay_Request
         /* Build the data object to be posted to Twispay. */
         $orderData = [ 'siteId' => $siteId
                      , 'customer' => $customer
-                     , 'order' => [ 'orderId' => $params['invoiceid']
+                     , 'order' => [ 'orderId' => $params['invoiceid'] . '_' . $timestamp
                                   , 'type' => 'recurring'
                                   , 'amount' => number_format(floatval($recurringBillingValues['recurringamount']), 2, '.', '')
                                   , 'currency' => $params['currency']
@@ -275,9 +280,9 @@ class Twispay_Request
 
         /* Encode the data and calculate the checksum. */
         $jsonRequest = self::getBase64JsonRequest($orderData);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'jsonRequest' => $jsonRequest], __FUNCTION__ . '::' . "Encoded JSON request");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'jsonRequest' => $jsonRequest], __FUNCTION__ . '::' . "Encoded JSON request");
         $checksum = self::getBase64Checksum($orderData, $apiKey);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'checksum' => $checksum], __FUNCTION__ . '::' . "Encoded JSON checksum");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoiceid' => $params['invoiceid'], 'checksum' => $checksum], __FUNCTION__ . '::' . "Encoded JSON checksum");
 
         return ['jsonRequest' => $jsonRequest, 'checksum' => $checksum, 'url' => $url];
     }

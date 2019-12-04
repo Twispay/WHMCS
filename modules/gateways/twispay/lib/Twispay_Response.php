@@ -40,10 +40,10 @@ class Twispay_Response
 
         /** Extract the service for this invoice. */
         $service = WHMCS\Service\Service::findOrFail($recurringBillingValues['primaryserviceid']);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['service' => $service], __FUNCTION__ . '::' . "Service extracted");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['service' => $service], __FUNCTION__ . '::' . "Service extracted");
         $service->subscriptionid = $response['orderId'];
         $service->save();
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['service' => $service], __FUNCTION__ . '::' . "Service updated");
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['service' => $service], __FUNCTION__ . '::' . "Service updated");
     }
 
 
@@ -89,6 +89,16 @@ class Twispay_Response
         if (NULL === $decodedResponse) {
             return FALSE;
         }
+
+        /** Check if externalOrderId uses '_' separator */
+        if (FALSE !== strpos($decodedResponse['externalOrderId'], '_')) {
+            $explodedVal = explode('_', $decodedResponse['externalOrderId'])[0];
+
+            /** Check if externalOrderId contains only digits and is not empty. */
+            if (!empty($explodedVal) && ctype_digit($explodedVal)) {
+                $decodedResponse['externalOrderId'] = $explodedVal;
+            }
+      }
 
         return $decodedResponse;
     }
@@ -154,7 +164,7 @@ class Twispay_Response
                 return FALSE;
             }
 
-            logTransaction(/*gatewayName*/'twispay', /*debugData*/['message' => Twispay_Notification::translate('TWISPAY_VALIDATION_COMPLETE') . $data['externalOrderId']], __FUNCTION__ . '::' . 'Validation completed');
+            // logTransaction(/*gatewayName*/'twispay', /*debugData*/['message' => Twispay_Notification::translate('TWISPAY_VALIDATION_COMPLETE') . $data['externalOrderId']], __FUNCTION__ . '::' . 'Validation completed');
 
             return TRUE;
         }
@@ -268,7 +278,7 @@ class Twispay_Response
                 require_once(__DIR__ . "/Twispay_Api.php");
 
                 $parentTransactionId = Twispay_Api::getParentTransactionId($response['transactionId']);
-                logTransaction(/*gatewayName*/'twispay', /*debugData*/['parentTransactionId' => $parentTransactionId], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: Parent transaction ID extracted');
+                // logTransaction(/*gatewayName*/'twispay', /*debugData*/['parentTransactionId' => $parentTransactionId], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: Parent transaction ID extracted');
 
                 /** Extract the parent transaction. */
                 $parentTransaction = WHMCS\Billing\Payment\Transaction::where('transid', $parentTransactionId)->first();
@@ -282,7 +292,7 @@ class Twispay_Response
                 if (NULL == $invoice) {
                     return FALSE;
                 }
-                logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoice' => $invoice], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: Invoice extracted');
+                // logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoice' => $invoice], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: Invoice extracted');
 
                 /** Calculate 'fees'. */
                 $fees = $parentTransaction->fees;
@@ -297,9 +307,9 @@ class Twispay_Response
                 logActivity('Refunded Invoice Payment - Invoice ID: ' . $invoiceId . ' - Transaction ID: ' . $parentTransaction->id, $invoice->userid);
 
                 $invoicetotalpaid = WHMCS\Billing\Payment\Transaction::selectRaw('SUM(amountin) as invoicetotalpaid')->where('invoiceid', $invoiceId)->first()->invoicetotalpaid;
-                logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoicetotalpaid' => $invoicetotalpaid], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: "invoicetotalpaid" calculated');
+                // logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoicetotalpaid' => $invoicetotalpaid], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: "invoicetotalpaid" calculated');
                 $invoicetotalrefunded = WHMCS\Billing\Payment\Transaction::selectRaw('SUM(amountout) as invoicetotalrefunded')->where('invoiceid', $invoiceId)->first()->invoicetotalrefunded;
-                logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoicetotalrefunded' => $invoicetotalrefunded], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: "invoicetotalrefunded" calculated');
+                // logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoicetotalrefunded' => $invoicetotalrefunded], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: "invoicetotalrefunded" calculated');
 
                 if (0 >= ($invoicetotalpaid - $invoicetotalrefunded - $response['amount'])) {
                     /** Set invoice status to 'Refunded' */
@@ -308,7 +318,7 @@ class Twispay_Response
                     logTransaction(/*gatewayName*/'twispay', /*debugData*/['invoice' => $invoice], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: Invoice status updated');
                     /** Execute refund hook. */
                     run_hook('InvoiceRefunded', ['invoiceid' => $invoiceId]);
-                    logTransaction(/*gatewayName*/'twispay', /*debugData*/[], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: Refund hook executed');
+                    // logTransaction(/*gatewayName*/'twispay', /*debugData*/[], __FUNCTION__ . '::' . 'Twispay IPN PROCESS: Refund hook executed');
                 }
 
                 /** Save the transaction. */

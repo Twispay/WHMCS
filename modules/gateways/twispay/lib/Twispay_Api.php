@@ -123,12 +123,11 @@ class Twispay_Api
 
         /** Compose the request URL. */
         $url  = Twispay_Config::getApiUrl() . '/transaction/' . $params['transid'];
-
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['url' => $url], __FUNCTION__ . '::' . 'Refund url');
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['url' => $url], __FUNCTION__ . '::' . 'Refund url');
 
         /* Create the DELETE data arguments. */
         $postData = 'amount=' . $params['amount'] . '&' . 'message=' . 'Refund for order ' . $params['invoiceid'];
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['postData' => $postData], __FUNCTION__ . '::' . 'Refund postData');
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['postData' => $postData], __FUNCTION__ . '::' . 'Refund postData');
 
         /* Make the server request. */
         $ch = curl_init();
@@ -142,7 +141,7 @@ class Twispay_Api
         /* Send the request. */
         $response = curl_exec($ch);
         curl_close($ch);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response], __FUNCTION__ . '::' . 'Refund response');
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response], __FUNCTION__ . '::' . 'Refund response');
         /* Decode the response. */
         $response = json_decode($response);
 
@@ -181,12 +180,11 @@ class Twispay_Api
 
         /** Compose the request URL. */
         $url  = Twispay_Config::getApiUrl() . '/order/' . $params['subscriptionID'];
-
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['url' => $url], __FUNCTION__ . '::' . 'Cancel subscription url');
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['url' => $url], __FUNCTION__ . '::' . 'Cancel subscription url');
 
         /* Create the DELETE data arguments. */
         $postData = 'message=' . Twispay_Notification::translate('TWISPAY_CANCEL_SUBSCRIPTION');
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['postData' => $postData], __FUNCTION__ . '::' . 'Cancel subscription postData');
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['postData' => $postData], __FUNCTION__ . '::' . 'Cancel subscription postData');
 
         /* Make the server request. */
         $ch = curl_init();
@@ -200,7 +198,7 @@ class Twispay_Api
         /* Send the request. */
         $response = curl_exec($ch);
         curl_close($ch);
-        logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response], __FUNCTION__ . '::' . 'Cancel subscription response');
+        // logTransaction(/*gatewayName*/'twispay', /*debugData*/['response' => $response], __FUNCTION__ . '::' . 'Cancel subscription response');
         /* Decode the response. */
         $response = json_decode($response);
 
