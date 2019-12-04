@@ -55,7 +55,7 @@ Install
 4. Go to : WHMCS Admin Area / Setup / Payments / Payment Gateways;
 5. Click 'All Payment Gateways' tab;
 6. Click on the "Twispay" button to activate the module (to turn it green);
-  * In the button is already green NO CLICK in requiered;
+  * If the button is already green NO CLICK in requiered;
 5. Click 'Manage Existing Gateways' tab;
 6. Go to the "Twispay" section
 7. **Check** the "Show on Order Form" option;
