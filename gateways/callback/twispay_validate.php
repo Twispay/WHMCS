@@ -199,7 +199,7 @@
             }
         }
 
-        if(empty($json->status) && empty($json->transactionStatus)) {
+        if(empty($json->transactionStatus)) {
             $_errors[] = tl('Empty status');
         }
         if(empty($json->amount)) {
@@ -217,8 +217,8 @@
         if(empty($json->transactionId)) {
             $_errors[] = tl('Empty transactionId');
         }
-        if(empty($json->transactionKind) && empty($json->transactionMethod)) {
-            $_errors[] = tl('Empty transactionKind');
+        if(empty($json->transactionMethod)) {
+            $_errors[] = tl('Empty transactionMethod');
         }
 
 
@@ -234,14 +234,14 @@
             $data = array(
                 'invoice_id' => $invoice_id,
                 'order_id' => $orders_id,
-                'status' => (empty($json->status)) ? $json->transactionStatus : $json->status,
+                'status' => $json->transactionStatus,
                 'amount' => (float)$json->amount,
                 'currency' => $json->currency,
                 'identifier' => $json->identifier,
                 'orderId' => (int)$json->orderId,
                 'transactionId' => (int)$json->transactionId,
                 'customerId' => (int)$json->customerId,
-                'transactionKind' => (empty($json->transactionKind)) ? $json->transactionMethod : $json->transactionKind,
+                'transactionKind' => $json->transactionMethod,
                 'cardId' => (!empty($json->cardId)) ? (int)$json->cardId : 0,
                 'timestamp' => (is_object($json->timestamp)) ? time() : $json->timestamp,
                 'original_invoice' => (!empty($json->custom->original_invoice)) ? $json->custom->original_invoice : '0',
@@ -250,9 +250,6 @@
 
             if(!in_array($data['status'], getResultStatuses())) {
                 $wrong_status['status'] = $data['status'];
-                $wrong_status['message'] = $json->message;
-                $wrong_status['code'] = $json->code;
-
                 twispay_log(sprintf(tl('[RESPONSE-ERROR] Wrong status (%s)'), $data['status']));
                 twispay_log();
 
@@ -342,7 +339,7 @@
 
             } else {
                 if(!empty($wrong_status['status'])){
-                    twispay_log(tl($wrong_status['message']));
+                    twispay_log(tl($wrong_status['status']));
                 }
                 die('OK');
             }
