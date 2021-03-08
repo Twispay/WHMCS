@@ -240,7 +240,7 @@ function checkValidation($json, $usingOpenssl = true) {
 
     twispay_log('hop si aici 1');
     twispay_log();
-    if(empty($json->status) && empty($json->transactionStatus)) {
+    if(empty($json->transactionStatus)) {
         $_errors[] = tl('Empty status');
     }
     if(empty($json->amount)) {
@@ -258,8 +258,8 @@ function checkValidation($json, $usingOpenssl = true) {
     if(empty($json->transactionId)) {
         $_errors[] = tl('Empty transactionId');
     }
-    if(empty($json->transactionKind) && empty($json->transactionMethod)) {
-        $_errors[] = tl('Empty transactionKind');
+    if(empty($json->transactionMethod)) {
+        $_errors[] = tl('Empty transactionMethod');
     }
 
 
@@ -277,14 +277,14 @@ function checkValidation($json, $usingOpenssl = true) {
         $data = array(
             'invoice_id' => $invoice_id,
             'order_id' => $orders_id,
-            'status' => (empty($json->status)) ? $json->transactionStatus : $json->status,
+            'status' => $json->transactionStatus,
             'amount' => (float)$json->amount,
             'currency' => $json->currency,
             'identifier' => $json->identifier,
             'orderId' => (int)$json->orderId,
             'transactionId' => (int)$json->transactionId,
             'customerId' => (int)$json->customerId,
-            'transactionKind' => (empty($json->transactionKind)) ? $json->transactionMethod : $json->transactionKind,
+            'transactionKind' => $json->transactionMethod,
             'cardId' => (!empty($json->cardId)) ? (int)$json->cardId : 0,
             'timestamp' => (is_object($json->timestamp)) ? time() : $json->timestamp,
             'original_invoice' => (!empty($json->custom->original_invoice)) ? $json->custom->original_invoice : '0',
@@ -295,8 +295,7 @@ function checkValidation($json, $usingOpenssl = true) {
             twispay_log('hop 10');
             twispay_log();
             $wrong_status['status'] = $data['status'];
-            $wrong_status['message'] = $json->message;
-            $wrong_status['code'] = $json->code;
+            $wrong_status['message'] = $data['status'];
 
             twispay_log(sprintf(tl('[RESPONSE-ERROR] Wrong status (%s)'), $data['status']));
             twispay_log();
